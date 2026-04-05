@@ -1,10 +1,7 @@
 package kaze
 
 import cats.effect.*
-import cats.syntax.all.*
 import fs2.*
-
-import scala.io.Source
 
 object Main extends IOApp.Simple {
 
@@ -34,11 +31,12 @@ object Main extends IOApp.Simple {
     .compile
     .drain
 
+  def emit(q: String): IO[String] = YomiKaze[IO](q)
+    .use(yk => IO(KamiKaze.emit(yk.tree, yk.schema)))
+
   def run: IO[Unit] = {
-    YomiKaze[IO]("query/to_unix.json")
-      .use { (tree, schema) =>
-        IO.println(tree) *> IO.println(schema).as(ExitCode.Success)
-      }
-    stream.as(ExitCode.Success)
+    emit("./query/league_team.json")
+      .flatMap(KamiKaze.write[IO]("cpp/src/kaze.cpp"))
+      .as(ExitCode.Success)
   }
 }

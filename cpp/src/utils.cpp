@@ -5,6 +5,26 @@
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
+/* Replaces ',' with '\0' in place, fills offsets array
+ * Returns number of fields found
+ */
+auto splice(char* line, size_t* offsets, size_t nfields) -> int32_t {
+    if (line == nullptr) {
+        return -1;
+    }
+    size_t n = 1;
+    offsets[0] = 0;
+
+#pragma unroll 500
+    for (size_t i = 0; line[i] != 0 && n < nfields; i++) {
+        if (line[i] == ',') {
+            offsets[n++] = i + 1;
+            line[i] = '\0';
+        }
+    }
+    return static_cast<int32_t>(n);
+}
+
 static inline const auto num = [](char c) noexcept -> int { return c - '0'; };
 
 /* Convert civil date to days since Unix epoch (1970-01-01)

@@ -1,0 +1,28 @@
+{
+    "columns": [
+        {
+            "alias": "laague",
+            "id": 0,
+            "name": "div",
+            "type": "col"
+        },
+        {
+            "alias": "team",
+            "id": 2,
+            "name": "team",
+            "type": "col"
+        }
+    ],
+    "description": "select to_unix(date), team from matches",
+    "schema": [
+        "div",
+        "date",
+        "team",
+        "goals"
+    ],
+    "source": {
+        "table": "matches",
+        "type": "scan"
+    },
+    "type": "select"
+}

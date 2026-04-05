@@ -1,7 +1,10 @@
 #ifndef __KAZE_H__
 #define __KAZE_H__
 
+#include <cstddef>
 #include <cstdint>
+
+// Visible to FFIfrom Panama
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,12 +12,15 @@ extern "C" {
 /*
  * Convert date string to Unix timestamp using Howard Hinnant Algorithm.
  *
- * Input format: DD/MM/YYYY. Returns 0 on invalid input or indeed on 01/01/1870
+ * Input format: DD/MM/YYYY. Returns 0 on invalid input or indeed on
+ * 01/01/1870
  */
 auto to_unix_ts(const char* str) -> uint64_t;
 
 #ifdef __cplusplus
 }
 #endif
+
+auto splice(char* line, size_t* offsets, size_t nfields) -> int32_t;
 
 #endif  // __KAZE_H__
