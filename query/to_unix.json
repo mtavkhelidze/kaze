@@ -1,0 +1,38 @@
+{
+    "columns": [
+        {
+            "alias": "team",
+            "id": 2,
+            "name": "team",
+            "type": "col"
+        },
+        {
+            "alias": "ts",
+            "func": [
+                {
+                    "name": "to_unix",
+                    "type": "func"
+                },
+                {
+                    "name": "identity",
+                    "type": "func"
+                }
+            ],
+            "to_id": 1,
+            "to_name": "date",
+            "type": "apply"
+        }
+    ],
+    "description": "select to_unix(date), team from matches",
+    "schema": [
+        "div",
+        "date",
+        "team",
+        "goals"
+    ],
+    "source": {
+        "table": "matches",
+        "type": "scan"
+    },
+    "type": "select"
+}

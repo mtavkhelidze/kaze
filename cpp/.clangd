@@ -1,0 +1,7 @@
+Diagnostics:
+  UnusedIncludes: Strict
+CompileFlags:
+  Compiler: /opt/homebrew/opt/llvm/bin/clang++
+Index:
+  Background: Build
+  StandardLibrary: Yes
