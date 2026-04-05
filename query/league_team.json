@@ -1,9 +1,9 @@
 {
     "columns": [
         {
-            "alias": "date",
-            "id": 1,
-            "name": "date",
+            "alias": "league",
+            "id": 0,
+            "name": "div",
             "type": "col"
         },
         {

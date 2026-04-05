@@ -9,7 +9,7 @@ import scala.sys.process.*
 object Main extends IOApp.Simple {
 
   private val libPath = "./cpp/build/libkaze.dylib"
-  private val csvFile = "./scripts/E22-24-25.csv"
+  private val csvFile = "./data/E22-24-25.csv"
   private val query = "./query/league_team.json"
   private val cppSrc = "./cpp/src/kaze.cpp"
   private val cppDir = "./cpp"
