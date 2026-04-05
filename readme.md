@@ -10,8 +10,6 @@ from parser to runtime.
 > pain in the neck which building integrated systems like this indeed is.
 
 #### Components
-- 
-
 - **BunKaze** (文風) — DSL: Expr, Rel, Func
 - **YomiKaze** (読み風) — JSON → Rel tree
 - **KamiKaze** (神風) — Rel tree → C++ → .so
