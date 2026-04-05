@@ -17,13 +17,14 @@ object KamiKaze {
       case Rel.Select(source, cols) => {
         s"""
            |#include "kaze.h"
+           |
+           |${emitStruct(cols)}
+           |
            |#ifdef __cplusplus
            |extern "C" {
            |#endif
            |
-           |${emitStruct(cols)}
-           |
-           |auto run(char* line, Row* out) -> int32_t {
+           |auto execute(char* line, Row* out) -> int32_t {
            |    size_t offsets[${schema.length}];
            |    splice(line, offsets, ${schema.length});
            |${emitAssignments(cols)}
@@ -43,6 +44,7 @@ object KamiKaze {
   private def emitStruct(cols: List[Expr]): String =
     s"""
        |struct Row {
+       |size_t n_fields;
        |${cols.map(emitStructField).mkString("\n")}
        |};
        |""".stripMargin
@@ -54,7 +56,8 @@ object KamiKaze {
       case _ => throw NotImplementedError(s"KamiKaze: $expr")
 
   private def emitAssignments(cols: List[Expr]): String =
-    cols.map(emitAssignment).mkString("\n")
+    s"    out->n_fields = ${cols.length};\n" +
+      cols.map(emitAssignment).mkString("\n")
 
   private def emitAssignment(expr: Expr): String =
     expr match

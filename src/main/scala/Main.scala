@@ -1,42 +1,53 @@
 package kaze
 
 import cats.effect.*
-import fs2.*
+import fs2.Stream
+
+import java.io.File
+import scala.sys.process.*
 
 object Main extends IOApp.Simple {
 
-  private val libPath = "cpp/build/libkaze.dylib"
+  private val libPath = "./cpp/build/libkaze.dylib"
   private val csvFile = "./scripts/E22-24-25.csv"
+  private val query = "./query/league_team.json"
+  private val cppSrc = "./cpp/src/kaze.cpp"
+  private val cppDir = "./cpp"
 
-  def stream = Stream
-    .eval(TheTailor[IO](libPath))
-    .flatMap { tailor =>
-      Stream
-        .resource(tailor.utils)
-        .flatMap { utils =>
-          Kawa[IO](csvFile)
-            .drop(1) // Skip CSV Header if present
-            .map(_.split(","))
-            .evalMap { cols =>
-              val dateStr = cols(1) // Assuming Date is Col 2
-              val team = cols(2) // Assuming Team is Col 3
-
-              utils.toUnixTimestamp(dateStr).map { ts =>
-                s"TS: $ts | Team: $team"
-              }
-            }
-        }
+  private def cmake[F[_]: Sync](dir: String): F[Unit] =
+    Sync[F].blocking {
+      val cwd = new File(dir)
+      val rc =
+        Process(Seq("cmake", "--build", "build", "--target", "kaze"), cwd).!
+      if rc != 0 then throw RuntimeException(s"cmake failed: $rc")
     }
-    .evalTap(IO.println(_))
-    .compile
-    .drain
 
-  def emit(q: String): IO[String] = YomiKaze[IO](q)
+  private def emit(q: String): IO[String] = YomiKaze[IO](q)
     .use(yk => IO(KamiKaze.emit(yk.tree, yk.schema)))
 
+  private def program =
+    emit(query)
+      .flatMap(KamiKaze.write[IO](cppSrc))
+      .flatTap(_ => cmake[IO](cppDir))
+      .flatMap(_ => TheTailor[IO](libPath))
+      .flatMap { tailor =>
+        Stream
+          .resource(tailor.query)
+          .flatMap { query =>
+            Kawa[IO](csvFile)
+              .drop(1)
+              .evalMap { row =>
+                query
+                  .execute(row)
+                  .map(_.mkString(","))
+              }
+          }
+          .evalTap(IO.println(_))
+          .compile
+          .drain
+      }
+
   def run: IO[Unit] = {
-    emit("./query/league_team.json")
-      .flatMap(KamiKaze.write[IO]("cpp/src/kaze.cpp"))
-      .as(ExitCode.Success)
+    program.as(ExitCode.Success)
   }
 }
