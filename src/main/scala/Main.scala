@@ -2,6 +2,7 @@ package kaze
 
 import cats.effect.*
 import fs2.Stream
+import panama.TheTailor
 
 import java.io.File
 import scala.sys.process.*

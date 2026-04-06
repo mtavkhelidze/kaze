@@ -1,4 +1,5 @@
 package kaze
+package panama
 
 import cats.effect.*
 import cats.syntax.all.*
@@ -7,56 +8,15 @@ import java.lang.foreign.*
 import java.lang.invoke.MethodHandle
 import java.nio.file.*
 
-type Signature = (name: String, desc: FunctionDescriptor)
-
-val querySignatures: List[Signature] = List(
-  (
-    "execute",
-    FunctionDescriptor.of(
-      // return code
-      ValueLayout.JAVA_INT,
-      // in: char* csv line
-      ValueLayout.ADDRESS,
-      // out: Row* result
-      ValueLayout.ADDRESS,
-    ),
-  ),
-)
-val utilsSignatures: List[Signature] = List(
-  (
-    "to_unix_ts",
-    FunctionDescriptor.of(
-      // return value
-      ValueLayout.JAVA_LONG,
-      // in: char* value
-      ValueLayout.ADDRESS,
-    ),
-  ),
-)
-
-trait UtilsModule[F[_]] {
-  def toUnixTimestamp(dateStr: String): F[Long]
-}
-
-trait QueryModule[F[_]] {
-  def execute(line: String): F[List[String]]
-}
-
 trait TheTailor[F[_]: Sync] { // of Panama
-  def utils: Resource[F, UtilsModule[F]]
-  def query: Resource[F, QueryModule[F]]
+  def utils: Resource[F, ModuleUtils[F]]
+  def query: Resource[F, ModuleQuery[F]]
 }
 object TheTailor {
   private def memcpy(src: MemorySegment, dst: MemorySegment, n: Long) =
     MemorySegment.copy(src, 0L, dst, 0L, n)
 
   private def memzero(dst: MemorySegment) = dst.fill(0.toByte)
-
-  private def readField(rowBuf: MemorySegment, i: Int): String =
-    rowBuf
-      .get(ValueLayout.ADDRESS, (i + 1) * 8L) // read the pointer
-      .reinterpret(Long.MaxValue) // give it a size so we can read from it
-      .getString(0L)
 
   private def mkArena[F[_]: Sync]: Resource[F, Arena] = {
     Resource.make(Sync[F].delay(Arena.ofShared()))(x =>
@@ -87,15 +47,15 @@ object TheTailor {
     val lookup = Sync[F]
       .delay(SymbolLookup.libraryLookup(Paths.get(libraryPath), Arena.global()))
     val utilsHandlers =
-      lookup.flatMap(lookup => findHandles[F](lookup, utilsSignatures))
+      lookup.flatMap(lookup => findHandles[F](lookup, ModuleUtils.decl))
     val queryHandlers =
-      lookup.flatMap(lookup => findHandles[F](lookup, querySignatures))
+      lookup.flatMap(lookup => findHandles[F](lookup, ModuleQuery.decl))
 
     (utilsHandlers, queryHandlers).mapN { case (uh, qh) =>
       new TheTailor[F] {
-        def query: Resource[F, QueryModule[F]] = {
+        def query: Resource[F, ModuleQuery[F]] = {
           mkArena[F].map { case arena =>
-            new QueryModule[F] {
+            new ModuleQuery[F] {
               val inBuf = arena.allocate(1024L).fill(0.toByte)
               val outBuf = arena.allocate(1024L).fill(0.toByte)
               override def execute(row: String): F[List[String]] = {
@@ -112,9 +72,11 @@ object TheTailor {
                   }
                   .flatMap {
                     case 0L =>
-                      val nfields = outBuf.get(ValueLayout.JAVA_LONG, 0L).toInt
+                      val nfields = ABI.fieldCount(outBuf)
                       Sync[F].pure(
-                        (0 until nfields).map(i => readField(outBuf, i)).toList,
+                        (0 until nfields.toInt)
+                          .map(i => ABI.pick[String](outBuf, i))
+                          .toList,
                       )
                     case _ =>
                       Sync[F].raiseError(
@@ -126,10 +88,10 @@ object TheTailor {
           }
         }
 
-        def utils: Resource[F, UtilsModule[F]] = {
+        def utils: Resource[F, ModuleUtils[F]] = {
           mkArena[F].map { case arena =>
             val buf = arena.allocate(10L).fill(0.toByte)
-            new UtilsModule[F] {
+            new ModuleUtils[F] {
               override def toUnixTimestamp(dateStr: String): F[Long] = {
                 Sync[F]
                   .blocking {
