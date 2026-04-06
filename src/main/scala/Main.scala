@@ -30,7 +30,7 @@ object Main extends IOApp.Simple {
     emit(query)
       .flatMap(KamiKaze.write[IO](cppSrc))
       .flatTap(_ => cmake[IO](cppDir))
-      .flatMap(_ => TheTailor[IO](libPath))
+      .map(_ => TheTailor[IO])
       .flatMap { tailor =>
         Stream
           .resource(tailor.query)

@@ -17,18 +17,27 @@ object KamiKaze {
       case Rel.Select(source, cols) => {
         s"""
            |#include "kaze.h"
-           |
+           |#include <alloca.h>
            |${emitStruct(cols)}
            |
+           |#include <stdio.h>
            |#ifdef __cplusplus
            |extern "C" {
            |#endif
            |
-           |auto execute(char* line, Row* out) -> int32_t {
+           |KAZE_FN(execute) {
+           |    // treat in as a memory page filled with 0-terminated strings
+           |    char** argv = (char**)alloca(len * sizeof(char*));
+           |    char* cur = (char*)in;
+           |    for (size_t i = 0; i < len; ++i) {
+           |        argv[i] = cur;
+           |        while (*cur++) {}
+       |        }
            |    size_t offsets[${schema.length}];
-           |    splice(line, offsets, ${schema.length});
-           |${emitAssignments(cols)}
-           |    return 0;
+           |    auto res = reinterpret_cast<Row*>(out);
+           |    splice(argv[0], offsets, ${schema.length});
+           |    ${emitAssignments(cols)}
+           |    return 0L;
            |}
            |
            |#ifdef __cplusplus
@@ -56,20 +65,20 @@ object KamiKaze {
       case _ => throw NotImplementedError(s"KamiKaze: $expr")
 
   private def emitAssignments(cols: List[Expr]): String =
-    s"    out->n_fields = ${cols.length};\n" +
+    s"    res->n_fields = ${cols.length};\n" +
       cols.map(emitAssignment).mkString("\n")
 
   private def emitAssignment(expr: Expr): String =
     expr match
       case Expr.Col(id, alias) =>
-        s"    out->$alias = line + offsets[$id];"
+        s"    res->$alias = argv[0] + offsets[$id];"
       case Expr.Apply(alias, fn) =>
-        s"    out->$alias = ${emitExpr(fn)};"
+        s"    res->$alias = ${emitExpr(fn)};"
       case _ => throw NotImplementedError(s"KamiKaze: $expr")
 
   private def emitExpr(expr: Expr): String =
     expr match
-      case Expr.Col(id, _) => s"line + offsets[$id]"
+      case Expr.Col(id, _) => s"argv[0] + offsets[$id]"
       case Expr.Func(name, inner) => s"${cppName(name)}(${emitExpr(inner)})"
       case _ => throw NotImplementedError(s"KamiKaze: $expr")
 

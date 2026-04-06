@@ -5,11 +5,12 @@
 2. Return type is always `Long / int64_t`. It can be either:
     - 0: success
     - < 0: error with different negative values meaning different errors
-3. Arguments are always `char**` and number of them, number >= 0. Exactly like
+3. Arguments are always `void*` and number of them, number >= 0. Very much like
    in textbook declaration of `main`.
     - **IMPORTANT**: arguments might be modified in place, so after the call
-      they are in undefined state
-    - All necessary convertions are performed by the native side
+      they are in undefined state.
+    - Cast to `char**` is done first thing on the native side.
+    - All necessary convertions are performed by the native side.
 4. Return value is place in the caller's preallocated buffer. It's a caller's
    The return value is always a struct where the first member (8L or 64 bits)
    are reserved for number of fields in the given struct. It is the caller's

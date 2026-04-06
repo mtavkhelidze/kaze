@@ -1,14 +1,64 @@
 package kaze
 package panama
 
+import cats.effect.*
+import cats.syntax.all.*
+
 import java.lang.foreign.*
+import java.lang.invoke.MethodHandle
+import java.nio.charset.StandardCharsets
+import java.nio.file.Paths
 import scala.compiletime.*
 
 type Signature = (name: String, desc: FunctionDescriptor)
 
 object ABI {
+  type InOut = (in: MemorySegment, out: MemorySegment)
 
-  def singnature(of: String): Signature =
+  def findHandles[F[_]: Sync](
+      sigs: List[Signature],
+  ): F[Map[String, MethodHandle]] = {
+    lookup.map { lookup =>
+      val linker = Linker.nativeLinker()
+      sigs
+        .map(s =>
+          (s.name, linker.downcallHandle(lookup.find(s.name).get, s.desc)),
+        )
+        .toMap
+    }
+  }
+
+  def lookup[F[_]: Sync](using cfg: KisokuKaze) = Sync[F].unit.map(_ =>
+    SymbolLookup.libraryLookup(Paths.get(cfg.libraryPath), Arena.global()),
+  )
+
+  def memcpy(src: List[String], dst: MemorySegment): Unit =
+    var offset = 0L
+    src.foreach { line =>
+      val bytes = line.getBytes(StandardCharsets.UTF_8) ++ Array(0.toByte)
+      val slice = dst.asSlice(offset)
+      MemorySegment
+        .copy(MemorySegment.ofArray(bytes), 0L, slice, 0L, bytes.length)
+      offset += bytes.length
+    }
+
+  def memzero(dst: MemorySegment): Unit = dst.fill(0.toByte)
+
+  def allocate[F[_]: Sync](using cfg: KisokuKaze): Resource[F, InOut] = {
+    sharedArena[F].map { case arena =>
+      (
+        arena.allocate(cfg.bufferLength).fill(0.toByte),
+        arena.allocate(cfg.bufferLength).fill(0.toByte),
+      )
+    }
+  }
+  def sharedArena[F[_]: Sync]: Resource[F, Arena] = {
+    Resource.make(Sync[F].delay(Arena.ofShared()))(x =>
+      Sync[F].delay(x.close()),
+    )
+  }
+
+  def signature(of: String): Signature =
     (
       of,
       FunctionDescriptor.of(

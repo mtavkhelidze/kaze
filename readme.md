@@ -11,8 +11,9 @@ from parser to runtime.
 
 #### Components
 - **BunKaze** (文風) — DSL: Expr, Rel, Func
-- **YomiKaze** (読み風) — JSON → Rel tree
 - **KamiKaze** (神風) — Rel tree → C++ → .so
+- **KisokuKaze** (規則) - config
+- **YomiKaze** (読み風) — JSON → Rel tree
 - **TheTailor (of Panama)** — FFI bridge, bespoke suit per query
 
 #### The pipeline:
