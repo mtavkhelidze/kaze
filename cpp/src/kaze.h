@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#define KAZE_FN(name) auto name(void* in, size_t len, void* out) -> int64_t
+
 // Visible to FFIfrom Panama
 #ifdef __cplusplus
 extern "C" {
