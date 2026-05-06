@@ -19,8 +19,9 @@ ThisBuild / scalacOptions ++= Seq("-Wconf:src=src_managed/.*:s")
 lazy val commonDeps = Seq(
   "co.fs2" %% "fs2-core" % "3.13.0",
   "co.fs2" %% "fs2-io" % "3.13.0",
-  "com.lihaoyi" %% "upickle" % "4.4.3",
+  "org.typelevel" %% "cats-core" % "2.13.0",
   "org.typelevel" %% "cats-effect" % "3.7.0",
+  "org.typelevel" %% "cats-parse" % "1.1.0",
 )
 lazy val testDeps = Nil
 
@@ -39,6 +40,11 @@ lazy val root = (project in file("."))
       "--sun-misc-unsafe-memory-access=allow",
     ),
     libraryDependencies ++= deps,
+    scalacOptions ++= Seq(
+      "-Werror",
+      "-deprecation",
+      "-Wconf:src=src_managed/.*:s",
+    ),
   )
 
 val cmake = taskKey[Unit]("Build libkaze")
